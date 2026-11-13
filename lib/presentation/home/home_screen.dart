@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/format/date_formatter.dart';
 import '../privacy/privacy_screen.dart';

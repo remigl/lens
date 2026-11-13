@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'domain/file_access_repository.dart';
 import 'domain/scan_metadata_store.dart';

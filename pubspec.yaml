@@ -4,12 +4,14 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.8.0
+  sdk: ^3.13.0
 
-# Aucune dépendance runtime : Flutter SDK uniquement.
 dependencies:
   flutter:
     sdk: flutter
+  # Material 3, sorti du SDK Flutter depuis 3.47 (éditeur : flutter.dev).
+  # Ce n'est pas une dépendance tierce, c'est l'ancien flutter/material.dart.
+  material_ui: ^1.0.0
 
 dev_dependencies:
   flutter_test:

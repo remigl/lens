@@ -18,10 +18,11 @@ android/app/src/main/kotlin/.../platform/
 ```
 
 État : `ChangeNotifier` + `ListenableBuilder` (Flutter SDK, pas de package).
+Seule dépendance : `material_ui` (Material 3 officiel, sorti du SDK depuis Flutter 3.47).
 
 ## Prérequis
 
-- Flutter stable ≥ 3.44 (Dart ≥ 3.8), JDK 17+, Android SDK 36
+- Flutter stable ≥ 3.47 (Dart ≥ 3.13), JDK 17+, Android SDK 36
 - Appareil ou émulateur Android 11+ (API 30)
 
 ## Installation
