@@ -23,6 +23,11 @@ void main() {
       clock: () => now,
     );
     addTearDown(controller.dispose);
+    // Taille d'un téléphone courant (1080 × 2400 px, ~412 × 915 dp).
+    tester.view
+      ..physicalSize = const Size(1080, 2400)
+      ..devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
     await controller.load();
     await tester.pumpWidget(
       MaterialApp(home: HomeScreen(controller: controller, clock: () => now)),
