@@ -7,6 +7,14 @@ import 'package:storage_lens/presentation/privacy/privacy_screen.dart';
 
 import 'fakes.dart';
 
+/// Fait défiler la liste jusqu'à ce que [finder] soit construit et visible.
+Future<void> scrollTo(WidgetTester tester, Finder finder) =>
+    tester.scrollUntilVisible(
+      finder,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
 void main() {
   final now = DateTime(2026, 11, 13, 18, 0);
 
@@ -58,9 +66,10 @@ void main() {
   testWidgets('Analyser enregistre et affiche la date', (tester) async {
     await pumpHome(tester, FakeStorageRepository([internalVolume()]));
 
-    await tester.ensureVisible(find.text('Analyser'));
+    await scrollTo(tester, find.text('Analyser'));
     await tester.tap(find.text('Analyser'));
     await tester.pumpAndSettle();
+    await scrollTo(tester, find.textContaining('Dernière analyse'));
 
     expect(find.text("Dernière analyse : Aujourd'hui à 18:00"), findsOneWidget);
   });
@@ -103,7 +112,7 @@ void main() {
         access: access);
 
     expect(find.text('Accès aux fichiers requis'), findsOneWidget);
-    await tester.ensureVisible(find.text('Ouvrir les paramètres'));
+    await scrollTo(tester, find.text('Ouvrir les paramètres'));
     await tester.tap(find.text('Ouvrir les paramètres'));
     await tester.pumpAndSettle();
     expect(access.settingsOpened, 1);
@@ -115,7 +124,7 @@ void main() {
       FakeStorageRepository([internalVolume()]),
       access: FakeFileAccessRepository(settingsAvailable: false),
     );
-    await tester.ensureVisible(find.text('Ouvrir les paramètres'));
+    await scrollTo(tester, find.text('Ouvrir les paramètres'));
     await tester.tap(find.text('Ouvrir les paramètres'));
     await tester.pump();
     expect(find.textContaining('Écran introuvable'), findsOneWidget);
