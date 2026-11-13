@@ -52,14 +52,11 @@ final class HomeError extends HomeState {
 
 class HomeController extends ChangeNotifier {
   HomeController({
-    required StorageRepository storage,
-    required ScanMetadataStore metadata,
-    required FileAccessRepository access,
+    required this._storage,
+    required this._metadata,
+    required this._access,
     DateTime Function()? clock,
-  })  : _storage = storage,
-        _metadata = metadata,
-        _access = access,
-        _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now;
 
   final StorageRepository _storage;
   final ScanMetadataStore _metadata;
