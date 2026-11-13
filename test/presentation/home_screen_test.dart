@@ -51,8 +51,9 @@ void main() {
     expect(find.text('sur 128 Go'), findsOneWidget);
     expect(find.text('36,6 Go libres'), findsOneWidget);
     expect(find.text('71 %'), findsOneWidget);
-    expect(find.text('Aucune analyse effectuée'), findsOneWidget);
     expect(find.text('Stockage presque plein'), findsNothing);
+    await scrollTo(tester, find.text('Aucune analyse effectuée'));
+    expect(find.text('Aucune analyse effectuée'), findsOneWidget);
   });
 
   testWidgets('alerte quand le stockage est presque plein', (tester) async {
