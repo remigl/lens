@@ -1,0 +1,38 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+*.iml
+.idea/
+.vscode/
+.metadata
+
+# Android (générés par flutter create / Gradle)
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+*.jks
+*.keystore
+android/**/GeneratedPluginRegistrant.java
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/build.gradle.kts
+android/settings.gradle.kts
+android/gradle.properties
+android/app/src/main/res/drawable*/
+android/app/src/main/res/mipmap*/
+android/app/src/main/res/values*/
+android/app/src/debug/
+android/app/src/profile/
+android/app/src/main/java/
+
+# Fichier de test d'exemple généré par flutter create
+test/widget_test.dart

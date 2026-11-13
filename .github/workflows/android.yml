@@ -1,0 +1,72 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # publication de la release « dev »
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Flutter stable cloné depuis le dépôt officiel (pas d'action tierce).
+      - name: Installer Flutter stable
+        run: |
+          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - run: flutter --version
+
+      # Génère uniquement les fichiers standard absents (wrapper Gradle,
+      # ressources, icônes). Les fichiers du dépôt ne sont pas écrasés.
+      - name: Générer les fichiers Android standard
+        run: |
+          flutter create --org be.gladieu --project-name storage_lens --platforms android .
+          rm -f test/widget_test.dart
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --release
+
+      - name: Vérifier les permissions de l'APK
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt | sort -V | tail -1)
+          "$AAPT" dump permissions build/app/outputs/flutter-apk/app-release.apk | tee permissions.txt
+          if grep -q "android.permission.INTERNET" permissions.txt; then
+            echo "::error::La permission INTERNET ne doit pas être présente"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storage-lens-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publier la release « dev »
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk storage-lens.apk
+          gh release delete dev --yes --cleanup-tag || true
+          gh release create dev storage-lens.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Build de développement" \
+            --notes "APK de test généré automatiquement depuis ${GITHUB_SHA::7}. Signé avec une clé debug : désinstaller la version précédente si l'installation échoue."
