@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../domain/storage_capacity.dart';
 import '../domain/storage_repository.dart';
 import '../domain/storage_volume_info.dart';
 import '../platform/storage_channel.dart';
@@ -47,7 +48,9 @@ class PlatformStorageRepository implements StorageRepository {
       id: id,
       label: label,
       kind: _kindFrom(entry),
-      totalBytes: total,
+      // Total en capacité commerciale, libre tel que mesuré :
+      // utilisé = total − libre, comme les Paramètres du téléphone.
+      totalBytes: marketedCapacityBytes(total),
       freeBytes: free,
     );
   }

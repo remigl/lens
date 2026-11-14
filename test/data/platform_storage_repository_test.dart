@@ -77,6 +77,23 @@ void main() {
     expect(await repository.loadVolumes(), isEmpty);
   });
 
+  test('cas réel Samsung : 111,5 Go utilisés sur 128 Go', () async {
+    respondWith((_) async => [
+          {
+            'id': 'primary',
+            'label': "Mémoire de l'appareil",
+            'primary': true,
+            'totalBytes': 128 * (1 << 30),
+            'freeBytes': 16500000000,
+          },
+        ]);
+
+    final volume = (await repository.loadVolumes()).single;
+    expect(volume.totalBytes, 128000000000);
+    expect(volume.usedBytes, 111500000000);
+    expect((volume.usedFraction * 100).round(), 87);
+  });
+
   test('PlatformException → StorageUnavailableException', () async {
     respondWith((_) async => throw PlatformException(code: 'storage_error'));
     expect(
