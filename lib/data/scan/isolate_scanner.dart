@@ -52,7 +52,7 @@ class BackgroundJob<T> {
 
     port.listen((message) {
       switch (message) {
-        case ScanProgress p:
+        case final ScanProgress p:
           if (!progress.isClosed) progress.add(p);
         case _Done(:final Object? value):
           if (!completer.isCompleted) completer.complete(value as T);
