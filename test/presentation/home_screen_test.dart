@@ -1,9 +1,16 @@
-import 'package:material_ui/material_ui.dart';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:storage_lens/domain/scan/volume_scan.dart';
 import 'package:storage_lens/domain/storage_repository.dart';
+import 'package:storage_lens/domain/storage_volume_info.dart';
+import 'package:storage_lens/presentation/compare/compare_screen.dart';
 import 'package:storage_lens/presentation/home/home_controller.dart';
 import 'package:storage_lens/presentation/home/home_screen.dart';
 import 'package:storage_lens/presentation/privacy/privacy_screen.dart';
+import 'package:storage_lens/presentation/scan/scan_controller.dart';
+import 'package:storage_lens/presentation/volume/volume_screen.dart';
 
 import 'fakes.dart';
 
@@ -18,34 +25,41 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) =>
 void main() {
   final now = DateTime(2026, 11, 13, 18, 0);
 
-  Future<HomeController> pumpHome(
+  Future<(HomeController, ScanController, MemoryScanCache)> pumpHome(
     WidgetTester tester,
-    FakeStorageRepository repo, {
-    FakeScanMetadataStore? meta,
+    List<StorageVolumeInfo> volumes, {
     FakeFileAccessRepository? access,
+    Object? error,
+    ManualScan? manual,
+    Map<String, VolumeScan> cached = const {},
   }) async {
+    final repo = FakeStorageRepository(volumes)..error = error;
     final controller = HomeController(
       storage: repo,
-      metadata: meta ?? FakeScanMetadataStore(),
-      access: access ?? FakeFileAccessRepository(),
-      clock: () => now,
+      access: access ?? FakeFileAccessRepository(granted: true),
+    );
+    final cache = MemoryScanCache()..stored.addAll(cached);
+    final scans = ScanController(
+      cache: cache,
+      starter: (manual ?? ManualScan()).start,
     );
     addTearDown(controller.dispose);
+    addTearDown(scans.dispose);
     // Taille d'un téléphone courant (1080 × 2400 px, ~412 × 915 dp).
     tester.view
       ..physicalSize = const Size(1080, 2400)
       ..devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
     await controller.load();
-    await tester.pumpWidget(
-      MaterialApp(home: HomeScreen(controller: controller, clock: () => now)),
-    );
+    await tester.pumpWidget(MaterialApp(
+      home: HomeScreen(controller: controller, scans: scans, clock: () => now),
+    ));
     await tester.pumpAndSettle();
-    return controller;
+    return (controller, scans, cache);
   }
 
   testWidgets('affiche utilisé / total / libre', (tester) async {
-    await pumpHome(tester, FakeStorageRepository([internalVolume()]));
+    await pumpHome(tester, [internalVolume()]);
 
     expect(find.text('91,4 Go utilisés'), findsOneWidget);
     expect(find.text('sur 128 Go'), findsOneWidget);
@@ -57,60 +71,101 @@ void main() {
   });
 
   testWidgets('alerte quand le stockage est presque plein', (tester) async {
-    await pumpHome(
-      tester,
-      FakeStorageRepository([internalVolume(free: 2000000000)]),
-    );
+    await pumpHome(tester, [internalVolume(free: 2000000000)]);
     expect(find.text('Stockage presque plein'), findsOneWidget);
   });
 
-  testWidgets('Analyser enregistre et affiche la date', (tester) async {
-    await pumpHome(tester, FakeStorageRepository([internalVolume()]));
+  testWidgets('Analyser ouvre le volume et lance l\'analyse', (tester) async {
+    final manual = ManualScan();
+    await pumpHome(tester, [internalVolume()], manual: manual);
 
     await scrollTo(tester, find.text('Analyser'));
     await tester.tap(find.text('Analyser'));
     await tester.pumpAndSettle();
-    await scrollTo(tester, find.textContaining('Dernière analyse'));
 
-    expect(find.text("Dernière analyse : Aujourd'hui à 18:00"), findsOneWidget);
+    expect(find.byType(VolumeScreen), findsOneWidget);
+    expect(manual.request?.rootPath, '/storage/emulated/0');
+    expect(find.text('Annuler'), findsOneWidget);
+
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(manual.cancelled, isTrue);
+    expect(find.text("Lancer l'analyse"), findsOneWidget);
+  });
+
+  testWidgets('sans accès aux fichiers, Analyser est désactivé', (tester) async {
+    await pumpHome(tester, [internalVolume()], access: FakeFileAccessRepository());
+    await scrollTo(tester, find.text('Analyser'));
+    final button = tester.widget<ButtonStyleButton>(
+      find.ancestor(of: find.text('Analyser'), matching: find.bySubtype<ButtonStyleButton>()),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('résumé des catégories après une analyse', (tester) async {
+    final root = Directory.systemTemp.createTempSync('home_scan_');
+    addTearDown(() => root.deleteSync(recursive: true));
+    writeBytes(root, 'DCIM/a.jpg', List.filled(3000, 1));
+    writeBytes(root, 'Movies/b.mp4', List.filled(5000, 2));
+
+    await pumpHome(
+      tester,
+      [internalVolume()],
+      cached: {'primary': scanOf(root)},
+    );
+
+    expect(find.text('Vidéos'), findsOneWidget);
+    expect(find.text('Photos et images'), findsOneWidget);
+    expect(find.text('Système et applications'), findsOneWidget);
   });
 
   testWidgets('aucun volume → message explicite', (tester) async {
-    await pumpHome(tester, FakeStorageRepository([]));
+    await pumpHome(tester, []);
     expect(find.text('Aucun volume lisible'), findsOneWidget);
   });
 
   testWidgets('erreur → bouton Réessayer', (tester) async {
-    final repo = FakeStorageRepository([internalVolume()])
-      ..error = const StorageUnavailableException('Lecture impossible');
-    await pumpHome(tester, repo);
-
+    final (controller, _, _) = await pumpHome(
+      tester,
+      [internalVolume()],
+      error: const StorageUnavailableException('Lecture impossible'),
+    );
     expect(find.text('Lecture impossible'), findsOneWidget);
-    repo.error = null;
-    await tester.tap(find.text('Réessayer'));
-    await tester.pumpAndSettle();
-    expect(find.text('36,6 Go libres'), findsOneWidget);
+    expect(controller.state, isA<HomeError>());
   });
 
-  testWidgets('aucune action destructive dans l\'interface', (tester) async {
-    await pumpHome(tester, FakeStorageRepository([internalVolume()]));
+  testWidgets('comparaison proposée avec deux supports', (tester) async {
+    await pumpHome(tester, [internalVolume(), sdCard()]);
+    await scrollTo(tester, find.text('Comparer deux supports'));
+    await tester.tap(find.text('Comparer deux supports'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CompareScreen), findsOneWidget);
+    expect(find.text('Capacité'), findsOneWidget);
+  });
+
+  testWidgets('pas de comparaison avec un seul support', (tester) async {
+    await pumpHome(tester, [internalVolume()]);
+    expect(find.text('Comparer deux supports'), findsNothing);
+  });
+
+  testWidgets("aucune action destructive dans l'interface", (tester) async {
+    await pumpHome(tester, [internalVolume(), sdCard()]);
     for (final word in ['Supprimer', 'Nettoyer', 'Déplacer', 'Partager']) {
       expect(find.textContaining(word), findsNothing);
     }
   });
 
   testWidgets('accès à la page Confidentialité', (tester) async {
-    await pumpHome(tester, FakeStorageRepository([internalVolume()]));
+    await pumpHome(tester, [internalVolume()]);
     await tester.tap(find.byTooltip('Confidentialité'));
     await tester.pumpAndSettle();
     expect(find.byType(PrivacyScreen), findsOneWidget);
     expect(find.text('Lecture seule'), findsOneWidget);
   });
 
-  testWidgets("accès non accordé : explication + bouton", (tester) async {
+  testWidgets('accès non accordé : explication + bouton', (tester) async {
     final access = FakeFileAccessRepository();
-    await pumpHome(tester, FakeStorageRepository([internalVolume()]),
-        access: access);
+    await pumpHome(tester, [internalVolume()], access: access);
 
     expect(find.text('Accès aux fichiers requis'), findsOneWidget);
     await scrollTo(tester, find.text('Ouvrir les paramètres'));
@@ -122,22 +177,12 @@ void main() {
   testWidgets("écran système introuvable : message d'aide", (tester) async {
     await pumpHome(
       tester,
-      FakeStorageRepository([internalVolume()]),
+      [internalVolume()],
       access: FakeFileAccessRepository(settingsAvailable: false),
     );
     await scrollTo(tester, find.text('Ouvrir les paramètres'));
     await tester.tap(find.text('Ouvrir les paramètres'));
     await tester.pump();
     expect(find.textContaining('Écran introuvable'), findsOneWidget);
-  });
-
-  testWidgets('accès accordé : confirmation', (tester) async {
-    await pumpHome(
-      tester,
-      FakeStorageRepository([internalVolume()]),
-      access: FakeFileAccessRepository(granted: true),
-    );
-    expect(find.text('Accès aux fichiers accordé'), findsOneWidget);
-    expect(find.text('Ouvrir les paramètres'), findsNothing);
   });
 }

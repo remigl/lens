@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../../domain/file_access_repository.dart';
-import '../../domain/scan_metadata_store.dart';
 import '../../domain/storage_repository.dart';
 import '../../domain/storage_volume_info.dart';
 
@@ -16,13 +15,11 @@ final class HomeLoading extends HomeState {
 final class HomeLoaded extends HomeState {
   const HomeLoaded({
     required this.volumes,
-    required this.lastScan,
     required this.hasFullAccess,
     this.isRefreshing = false,
   });
 
   final List<StorageVolumeInfo> volumes;
-  final DateTime? lastScan;
   final bool hasFullAccess;
   final bool isRefreshing;
 
@@ -38,7 +35,6 @@ final class HomeLoaded extends HomeState {
 
   HomeLoaded copyWith({bool? isRefreshing}) => HomeLoaded(
         volumes: volumes,
-        lastScan: lastScan,
         hasFullAccess: hasFullAccess,
         isRefreshing: isRefreshing ?? this.isRefreshing,
       );
@@ -53,15 +49,11 @@ final class HomeError extends HomeState {
 class HomeController extends ChangeNotifier {
   HomeController({
     required this._storage,
-    required this._metadata,
     required this._access,
-    DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  });
 
   final StorageRepository _storage;
-  final ScanMetadataStore _metadata;
   final FileAccessRepository _access;
-  final DateTime Function() _clock;
 
   HomeState _state = const HomeLoading();
   bool _busy = false;
@@ -69,18 +61,14 @@ class HomeController extends ChangeNotifier {
 
   HomeState get state => _state;
 
-  /// Lecture initiale : statistiques système + date du dernier scan.
-  Future<void> load() => _refresh(recordScan: false);
-
-  /// Étape 1 du MVP : rafraîchit les statistiques et enregistre la date.
-  /// L'analyse détaillée (catégories, fichiers) arrive aux étapes suivantes.
-  Future<void> analyze() => _refresh(recordScan: true);
+  /// Lit (ou relit) les volumes montés et l'état de l'accès aux fichiers.
+  Future<void> load() => _refresh();
 
   /// Ouvre l'écran système d'autorisation. L'état est relu au retour
   /// dans l'application (voir [load], appelé à la reprise).
   Future<bool> requestFullAccess() => _access.openAllFilesAccessSettings();
 
-  Future<void> _refresh({required bool recordScan}) async {
+  Future<void> _refresh() async {
     if (_busy) return;
     _busy = true;
     final previous = _state;
@@ -89,14 +77,8 @@ class HomeController extends ChangeNotifier {
     try {
       final volumes = await _storage.loadVolumes();
       final hasFullAccess = await _access.hasAllFilesAccess();
-      var lastScan = await _metadata.readLastScan();
-      if (recordScan) {
-        final now = _clock();
-        if (await _metadata.writeLastScan(now)) lastScan = now;
-      }
       _emit(HomeLoaded(
         volumes: volumes,
-        lastScan: lastScan,
         hasFullAccess: hasFullAccess,
       ));
     } on StorageUnavailableException catch (e) {

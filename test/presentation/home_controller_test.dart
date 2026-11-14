@@ -7,22 +7,14 @@ import 'package:storage_lens/presentation/home/home_controller.dart';
 import 'fakes.dart';
 
 void main() {
-  final fixedNow = DateTime.utc(2026, 11, 13, 17, 0);
   late FakeStorageRepository repo;
-  late FakeScanMetadataStore meta;
   late FakeFileAccessRepository access;
   late HomeController controller;
 
   setUp(() {
-    repo = FakeStorageRepository([internalVolume()]);
-    meta = FakeScanMetadataStore();
+    repo = FakeStorageRepository([internalVolume(), sdCard()]);
     access = FakeFileAccessRepository();
-    controller = HomeController(
-      storage: repo,
-      metadata: meta,
-      access: access,
-      clock: () => fixedNow,
-    );
+    controller = HomeController(storage: repo, access: access);
   });
 
   tearDown(() => controller.dispose());
@@ -31,27 +23,11 @@ void main() {
     expect(controller.state, isA<HomeLoading>());
   });
 
-  test('load : volumes chargés, pas de date enregistrée', () async {
+  test('load : volumes chargés, principal identifié', () async {
     await controller.load();
     final state = controller.state as HomeLoaded;
     expect(state.primary?.usedBytes, 91400000000);
-    expect(state.lastScan, isNull);
-    expect(meta.stored, isNull);
-  });
-
-  test('analyze : enregistre la date du scan', () async {
-    await controller.analyze();
-    expect((controller.state as HomeLoaded).lastScan, fixedNow);
-    expect(meta.stored, fixedNow);
-  });
-
-  test("analyze : échec d'écriture → ancienne date conservée", () async {
-    final previous = DateTime.utc(2026, 11, 1);
-    meta
-      ..stored = previous
-      ..failWrites = true;
-    await controller.analyze();
-    expect((controller.state as HomeLoaded).lastScan, previous);
+    expect(state.secondary.single.label, 'Carte SD');
   });
 
   test('erreur de stockage → HomeError avec message', () async {
@@ -66,21 +42,20 @@ void main() {
     expect(controller.state, isA<HomeError>());
   });
 
-  test('appels concurrents ignorés pendant une analyse', () async {
+  test('appels concurrents ignorés pendant un rafraîchissement', () async {
     await controller.load();
     repo.gate = Completer<void>();
-    final first = controller.analyze();
+    final first = controller.load();
     expect((controller.state as HomeLoaded).isRefreshing, isTrue);
-    await controller.analyze();
+    await controller.load();
     repo.gate!.complete();
     await first;
-    expect(repo.calls, 2); // load + un seul analyze
+    expect(repo.calls, 2);
     expect((controller.state as HomeLoaded).isRefreshing, isFalse);
   });
 
   test('aucune notification après dispose', () async {
-    final local =
-        HomeController(storage: repo, metadata: meta, access: access);
+    final local = HomeController(storage: repo, access: access);
     repo.gate = Completer<void>();
     final pending = local.load();
     local.dispose();

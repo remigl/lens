@@ -11,6 +11,7 @@ class StorageVolumeInfo {
     required this.kind,
     required this.totalBytes,
     required this.freeBytes,
+    required this.rootPath,
   });
 
   /// Construit un volume en corrigeant les valeurs incohérentes
@@ -21,6 +22,7 @@ class StorageVolumeInfo {
     required VolumeKind kind,
     required int totalBytes,
     required int freeBytes,
+    String? rootPath,
   }) {
     final total = totalBytes < 0 ? 0 : totalBytes;
     final free = freeBytes.clamp(0, total);
@@ -30,6 +32,7 @@ class StorageVolumeInfo {
       kind: kind,
       totalBytes: total,
       freeBytes: free,
+      rootPath: rootPath,
     );
   }
 
@@ -41,6 +44,11 @@ class StorageVolumeInfo {
   final VolumeKind kind;
   final int totalBytes;
   final int freeBytes;
+
+  /// Point de montage lisible par l'analyse, ou `null` si inconnu.
+  final String? rootPath;
+
+  bool get canBeScanned => rootPath != null && rootPath!.isNotEmpty;
 
   int get usedBytes => totalBytes - freeBytes;
 
@@ -56,8 +64,9 @@ class StorageVolumeInfo {
       other.label == label &&
       other.kind == kind &&
       other.totalBytes == totalBytes &&
-      other.freeBytes == freeBytes;
+      other.freeBytes == freeBytes &&
+      other.rootPath == rootPath;
 
   @override
-  int get hashCode => Object.hash(id, label, kind, totalBytes, freeBytes);
+  int get hashCode => Object.hash(id, label, kind, totalBytes, freeBytes, rootPath);
 }

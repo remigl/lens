@@ -18,6 +18,8 @@ data class VolumeStats(
     val totalBytes: Long,
     val freeBytes: Long,
     val source: String,
+    /** Point de montage (ex. /storage/emulated/0), lu localement par l'analyse. */
+    val path: String?,
 ) {
     fun toChannelMap(): Map<String, Any> = mapOf(
         "id" to id,
@@ -27,7 +29,7 @@ data class VolumeStats(
         "totalBytes" to totalBytes,
         "freeBytes" to freeBytes,
         "source" to source,
-    )
+    ).let { base -> if (path != null) base + ("path" to path) else base }
 }
 
 /**
@@ -89,6 +91,7 @@ class VolumeStatsReader(private val context: Context) {
             totalBytes = total,
             freeBytes = free.coerceIn(0L, total),
             source = source,
+            path = volume.directory?.absolutePath,
         )
     }
 

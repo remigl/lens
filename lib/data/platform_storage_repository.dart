@@ -52,6 +52,7 @@ class PlatformStorageRepository implements StorageRepository {
       // utilisé = total − libre, comme les Paramètres du téléphone.
       totalBytes: marketedCapacityBytes(total),
       freeBytes: free,
+      rootPath: entry['path'] is String ? entry['path'] as String : null,
     );
   }
 

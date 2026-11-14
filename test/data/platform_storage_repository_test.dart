@@ -35,6 +35,7 @@ void main() {
             'removable': false,
             'totalBytes': 128000000000,
             'freeBytes': 36600000000,
+            'path': '/storage/emulated/0',
           },
         ]);
 
@@ -44,6 +45,9 @@ void main() {
     expect(volumes.first.kind, VolumeKind.primary);
     expect(volumes.first.usedBytes, 91400000000);
     expect(volumes.last.kind, VolumeKind.removable);
+    expect(volumes.first.rootPath, '/storage/emulated/0');
+    expect(volumes.first.canBeScanned, isTrue);
+    expect(volumes.last.canBeScanned, isFalse);
   });
 
   test('ignore les entrées mal formées sans planter', () async {
