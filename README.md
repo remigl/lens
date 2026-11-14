@@ -3,13 +3,25 @@
 Application Android (Flutter) **en lecture seule** qui répond à une question : *pourquoi mon téléphone est-il presque plein ?*
 Aucune suppression, aucun réseau, aucun compte, aucune collecte.
 
+## Fonctionnalités
+
+- Espace total / utilisé / libre de chaque support (interne, carte SD, clé USB), en capacité commerciale comme les Paramètres
+- Répartition par catégories : vidéos, photos, audio, documents, archives, APK, autres
+- Téléchargements, corbeille, fichiers temporaires détectés
+- Les 100 plus gros fichiers (et par catégorie), avec emplacement et date
+- Exploration des dossiers par taille cumulée
+- Doublons : regroupement par taille → empreinte début/fin (2 × 64 Kio) → **comparaison octet par octet** (fichiers ≥ 1 Mo)
+- Comparaison de deux supports, y compris les fichiers identiques présents sur les deux
+- Analyse dans un isolate séparé, progression réelle, annulable ; résultats en cache local compressé
+
 ## Architecture
 
 ```
 lib/
   core/format/      formatage tailles (base 1000, « 91,4 Go ») et dates
-  domain/           modèles + interfaces (StorageVolumeInfo, StorageRepository, ScanMetadataStore)
-  data/             implémentations (canal plateforme, fichier JSON privé)
+  domain/           modèles + interfaces (StorageVolumeInfo, StorageRepository…)
+  domain/scan/      moteur de parcours, détection des doublons, modèle d'analyse
+  data/             implémentations (canal plateforme, isolate, cache gzip privé)
   platform/         pont MethodChannel Dart ↔ Kotlin
   presentation/     écrans, ChangeNotifier, thème Material 3
 android/app/src/main/kotlin/.../platform/

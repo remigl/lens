@@ -29,7 +29,14 @@ class PrivacyScreen extends StatelessWidget {
       Icons.lock_outline,
       'Lecture seule',
       "L'application ne supprime, ne déplace, ne modifie et ne partage aucun "
-          "fichier. Elle n'ouvre pas le contenu de vos fichiers.",
+          "fichier.",
+    ),
+    (
+      Icons.compare_outlined,
+      'Contenu des fichiers',
+      "L'analyse lit seulement les noms, tailles et dates. Pour confirmer un "
+          "doublon, deux fichiers de même taille sont comparés octet par octet "
+          "en mémoire : leur contenu n'est ni affiché, ni conservé.",
     ),
   ];
 
