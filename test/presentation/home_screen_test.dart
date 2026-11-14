@@ -81,7 +81,10 @@ void main() {
 
     await scrollTo(tester, find.text('Analyser'));
     await tester.tap(find.text('Analyser'));
-    await tester.pumpAndSettle();
+    // Barre de progression indéterminée : animation continue, donc
+    // on avance le temps au lieu d'attendre la stabilisation.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(VolumeScreen), findsOneWidget);
     expect(manual.request?.rootPath, '/storage/emulated/0');
